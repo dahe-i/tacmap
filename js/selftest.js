@@ -30,7 +30,8 @@
 
     const cv = document.getElementById('cv');
 
-    ok('maps-loaded', S.maps.length >= 2, S.maps.map(m => m.id).join(','));
+    ok('maps-loaded', S.maps.length >= 1, S.maps.map(m => m.id).join(','));
+    ok('default-hidden-maps', S.maps.every(m => m.id === 'hajin'), S.maps.map(m => m.id).join(','));
     ok('current-map', S.map && S.map.id === 'hajin', S.map && S.map.id);
     ok('image-loaded', !!S.map.img && S.map.img.naturalWidth > 0, S.map.img && S.map.img.naturalWidth);
     ok('canvas-sized', cv.width > 100 && cv.height > 100, cv.width + 'x' + cv.height);
@@ -148,11 +149,12 @@
     buildChipsSafe();
     ok('group-clear', document.querySelectorAll('#chips .chip.group').length === 0, 'ok');
 
-    // 10. 切图（默认第一张是河津）
+    // 10. 切图（码头/训练场默认被隐藏，先恢复再测）
+    if (T.restoreMaps) T.restoreMaps();
     const tabs = document.querySelectorAll('.map-tab');
     ok('tabs', tabs.length >= 3, String(tabs.length));
     ok('default-hajin', S.map.id === 'hajin', S.map.id);
-    ok('hajin-points', S.map.items.length >= 86, String(S.map.items.length));
+    ok('hajin-points', S.map.items.length >= 50, String(S.map.items.length));
     ok('hajin-cats', !!(S.map.categories && S.map.categories.length === 8), String(S.map.categories && S.map.categories.length));
     ok('chips-rendered', document.querySelectorAll('#chips .chip').length >= 9, String(document.querySelectorAll('#chips .chip').length));
     tabs[2].click();

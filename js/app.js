@@ -284,7 +284,10 @@
     (m.categories || []).forEach(c => { S.catDefs[c.id] = c; });
     S.hidden = new Set();
     S.hiddenRoutes = new Set();
-    S.chipGroups = loadChipGroups(m.id);
+    const storedGroups = loadChipGroups(m.id);
+    S.chipGroups = (storedGroups && storedGroups.length)
+      ? storedGroups
+      : JSON.parse(JSON.stringify(m.chipGroups || []));
     S.mergeMode = false;
     S.mergeSel = new Set();
     buildTabs();
@@ -1177,8 +1180,11 @@
     }
 
     const byKey = new Map(groups.map(g => [g.key, g]));
+    // 只保留至少 2 个成员还在的合并组；只剩 1 个的按普通分类显示
+    const validGroups = S.chipGroups.filter(cg =>
+      (cg.keys || []).filter(k => byKey.has(k)).length >= 2);
     const used = new Set();
-    S.chipGroups.forEach(cg => (cg.keys || []).forEach(k => used.add(k)));
+    validGroups.forEach(cg => (cg.keys || []).forEach(k => used.add(k)));
     const loose = groups.filter(g => !used.has(g.key));
 
     function chipEl(label, color, count, cls) {
@@ -1201,7 +1207,7 @@
     box.appendChild(all);
 
     // 已合并的分类
-    S.chipGroups.forEach(cg => {
+    validGroups.forEach(cg => {
       const members = (cg.keys || []).map(k => byKey.get(k)).filter(Boolean);
       if (!members.length) return;
       const shownAll = members.every(mm => !S.hidden.has(mm.key));
@@ -2153,6 +2159,9 @@
   function boot() {
     buildSwatches();
     const customs = loadCustomMetas();
+    if (lsGet(K_HIDDEN) === null && Array.isArray(window.TACMAP_DEFAULT_HIDDEN_MAPS)) {
+      saveHiddenMapIds(window.TACMAP_DEFAULT_HIDDEN_MAPS.slice());
+    }
     const hidden = hiddenMapIds();
     const builtin = builtinMaps().filter(m => hidden.indexOf(m.id) < 0);
     S.maps = builtin.map(m => prepareMap(m, false));
@@ -2189,7 +2198,7 @@
     state: S,
     get map() { return S.map; },
     setTool: setTool, setColor: setColor, select: select, addChipGroup: addChipGroup, buildChips: buildChips,
-    copySelected: copySelected, pasteMarker: pasteMarker,
+    copySelected: copySelected, pasteMarker: pasteMarker, restoreMaps: restoreMaps,
     placeMarker: placeMarker, pickAt: pickAt, toWorld: toWorld,
     fitView: fitView, requestDraw: requestDraw, finishRoute: finishRoute,
     undo: undo, redo: redo, exportPng: exportPng, deleteItem: deleteItem

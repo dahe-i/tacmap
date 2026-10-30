@@ -1,5 +1,8 @@
 ﻿/* 地图与默认标注数据（示意图为程序绘制的原创底图） */
 (function () {
+  /* 首次打开默认隐藏哪些地图（只影响没手动改过的新浏览器） */
+  window.TACMAP_DEFAULT_HIDDEN_MAPS = ['dock', 'range'];
+
   window.MAPS = [
     {
       id: 'dock',
