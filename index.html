@@ -1,0 +1,209 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>TACMAP · 战术地图板</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◤◢</span>
+      <span class="brand-name">TACMAP</span>
+      <span class="brand-sub">战术地图板</span>
+    </div>
+
+    <nav class="maps" id="mapTabs"></nav>
+
+    <div class="spacer"></div>
+
+    <div class="top-actions">
+      <button class="btn ghost" id="btnUpload" title="上传自己的地图截图">＋ 上传地图</button>
+      <button class="btn ghost" id="btnPng" title="导出当前布局为图片">导出图片</button>
+      <button class="btn ghost" id="btnPlan" title="导出 / 导入标注方案 JSON">方案</button>
+      <button class="btn icon" id="btnHelp" title="快捷键">?</button>
+    </div>
+  </header>
+
+  <div class="chipbar" id="chips" hidden></div>
+
+  <main class="main">
+    <!-- 左侧工具栏 -->
+    <aside class="rail">
+      <button class="tool" data-tool="view" title="观察 / 只浏览（1）">
+        <svg viewBox="0 0 24 24"><path d="M12 5C6.5 5 2.7 9.1 1.5 12c1.2 2.9 5 7 10.5 7s9.3-4.1 10.5-7C21.3 9.1 17.5 5 12 5zm0 11.2A4.2 4.2 0 1112 7.8a4.2 4.2 0 010 8.4z"/></svg>
+        <span>观察</span>
+      </button>
+      <button class="tool" data-tool="select" title="选择 / 移动（2）">
+        <svg viewBox="0 0 24 24"><path d="M4 3l7.5 18 2.2-7.3L21 11.5 4 3z"/></svg>
+        <span>选择</span>
+      </button>
+      <button class="tool" data-tool="marker" title="放置标记（3）">
+        <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1112 6.5a2.5 2.5 0 010 5z"/></svg>
+        <span>标记</span>
+      </button>
+      <button class="tool" data-tool="route" title="画路线（4）">
+        <svg viewBox="0 0 24 24"><path d="M4 18l5-9 4 5 3-4 4 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>路线</span>
+      </button>
+                  <button class="tool" data-tool="erase" title="点击删除（5）">
+        <svg viewBox="0 0 24 24"><path d="M8 21h11M5.5 17.5L14 9l5 5-6 6-5-5-2.5 2.5L3 15l6.5-6.5 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>擦除</span>
+      </button>
+
+      <div class="rail-sep"></div>
+      <div class="cat-title">标记颜色</div>
+      <div class="swatches" id="swatches"></div>
+      <label class="swatch-custom" id="customColorWrap" title="自定义颜色">
+        <input type="color" id="colorInput" value="#ff7a1a">
+        <span>＋</span>
+      </label>
+    </aside>
+
+    <!-- 地图舞台 -->
+    <section class="stage" id="stage">
+      <canvas id="cv"></canvas>
+
+      <div class="hud hud-tl">
+        <div class="hud-name" id="hudName">码头</div>
+        <div class="hud-meta" id="hudMeta">2048 × 2048 · 10×10 网格</div>
+      </div>
+
+      <div class="hud hud-tr">
+        <button class="zbtn" id="zIn" title="放大">＋</button>
+        <div class="zval" id="zVal">100%</div>
+        <button class="zbtn" id="zOut" title="缩小">－</button>
+        <button class="zbtn" id="zFit" title="适应窗口（F）">⤢</button>
+      </div>
+
+      <div class="hint" id="hint"></div>
+      <div class="toast" id="toast"></div>
+      <div class="err" id="err"></div>
+    </section>
+
+    <!-- 右侧面板 -->
+    <aside class="panel" id="panel">
+      <div class="pgroup">
+        <div class="phead">图层</div>
+        <label class="sw"><input type="checkbox" data-layer="grid" checked><span>战术网格</span><i>A1–J10</i></label>
+        <label class="sw"><input type="checkbox" data-layer="labels" checked><span>名称标签</span><i></i></label>
+        <label class="sw"><input type="checkbox" data-layer="markers" checked><span>标记</span><i></i></label>
+        <label class="sw"><input type="checkbox" data-layer="routes" checked><span>路线</span><i></i></label>
+        <div class="slider-row">
+          <span>底图压暗</span>
+          <input type="range" id="dim" min="0" max="80" value="22">
+          <b id="dimVal">22%</b>
+        </div>
+      </div>
+
+      <div class="pgroup" id="selGroup">
+        <div class="phead">选中</div>
+        <div class="empty" id="selEmpty">没有选中对象<br><small>用「选择」工具点一下图标或路线</small></div>
+        <div class="selbox" id="selBox" hidden>
+          <div class="row">
+            <input class="inp" id="selName" maxlength="24" placeholder="输入文字标注…">
+            <input type="color" class="colorchip" id="selColor" title="改颜色">
+          </div>
+          <div class="row">
+            <button class="btn tiny" id="selCopy" title="复制这个标点（Ctrl+C）">复制</button>
+            <button class="btn tiny danger" id="selDel" title="删除（Del）">删除</button>
+            <span class="selmeta" id="selMeta"></span>
+          </div>
+          <label class="sw"><input type="checkbox" id="selDotless"><span>不显示圆点（只留文字）</span></label>
+          <label class="sw"><input type="checkbox" id="selHideLabel"><span>点击才显示文字（平时只留点）</span></label>
+          <div class="slider-row">
+            <span>透明度</span>
+            <input type="range" id="selAlpha" min="15" max="100" value="100">
+            <b id="selAlphaVal">100%</b>
+          </div>
+          <div class="route-tools" id="routeTools" hidden>
+            <div class="slider-row">
+              <span>线宽</span>
+              <input type="range" id="routeWidth" min="2" max="16" value="4">
+              <b id="routeWidthVal">4</b>
+            </div>
+            <div class="slider-row">
+              <span>标题大小</span>
+              <input type="range" id="routeLabelSize" min="60" max="220" value="100">
+              <b id="routeLabelSizeVal">100%</b>
+            </div>
+            <div class="slider-row">
+              <span>标题透明</span>
+              <input type="range" id="routeLabelAlpha" min="15" max="100" value="100">
+              <b id="routeLabelAlphaVal">100%</b>
+            </div>
+            <div class="phead sub">拐点命名</div>
+            <div class="vlist" id="vertexList"></div>
+            <div class="selmeta">拖动路线上的文字可以换位置</div>
+          </div>
+          <div class="row" id="groupPickRow" hidden>
+            <span class="selmeta" style="flex:0 0 auto">归入分类</span>
+            <select class="inp" id="selGroupPick"></select>
+          </div>
+          <textarea class="inp ta" id="selDesc" maxlength="120" placeholder="备注：视野、卡点位、注意事项…"></textarea>
+        </div>
+      </div>
+
+      <div class="pgroup grow">
+        <div class="phead">标记列表 <span class="count" id="listCount">0</span></div>
+        <div class="list" id="list"></div>
+      </div>
+
+      <div class="pgroup">
+        <div class="phead">快捷键</div>
+        <div class="keys">
+          <span><kbd>1</kbd>–<kbd>5</kbd> 切换工具</span>
+          <span><kbd>F</kbd> 适应窗口 · <kbd>G</kbd> 网格</span>
+          <span><kbd>Del</kbd> 删除 · <kbd>Esc</kbd> 取消</span>
+          <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销 · <kbd>Y</kbd> 重做</span>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="status">
+    <span id="stTool">工具：选择</span>
+    <span class="sep">|</span>
+    <span id="stCoord">网格 —</span>
+    <span class="sep">|</span>
+    <span id="stCount">标记 0 · 路线 0</span>
+    <div class="spacer"></div>
+    <span class="muted">滚轮缩放 · 拖拽平移 · 双指缩放</span>
+  </footer>
+
+  <input type="file" id="fileMap" accept="image/*" hidden>
+  <input type="file" id="filePlan" accept="application/json,.json" hidden>
+</div>
+
+<div class="modal" id="helpModal" hidden>
+  <div class="modal-card">
+    <h3>怎么用</h3>
+    <ul>
+      <li><b>缩放平移</b>：滚轮 / 双指缩放；空白处拖拽平移（任何工具下按住空格或右键也能平移）。</li>
+      <li><b>标记</b>：左侧点一个颜色 → 点地图放点 → 在右边输入文字，文字会跟着色点显示在地图上；「选择」可拖动位置、改颜色。</li>
+      <li><b>观察</b>：只浏览的档位——拖拽只平移地图，点到点位 / 路线只会选中看信息，挪不动东西。</li>
+      <li><b>合并分类</b>：点位筛选条最左边点「合并…」，勾几个分类 →「合并这 N 类」→ 起个名字。合并后筛选栏变短，点一下可整组显隐；分类名右边的 ▸ 展开成员，成员后面的 ✕ 可以单独移出；选中点位后用右侧「归入分类」也能加进去。</li>
+      <li><b>路线</b>：连续点击落点，双击或 <kbd>Enter</kbd> 结束，<kbd>Esc</kbd> 放弃。</li>
+      <li><b>改路线</b>：选中路线后，右侧能调线宽、标题字号、标题透明度，给每个拐点起名字；路线标题可以直接拖着换位置。</li>
+      <li><b>路线筛选</b>：筛选条左边可以切「点位 / 路线」，路线模式下按条隐藏；「全部」点一下隐藏、再点一下显示。</li>
+      <li><b>复制标点</b>：选中一个点按 <kbd>Ctrl</kbd>+<kbd>C</kbd>，再 <kbd>Ctrl</kbd>+<kbd>V</kbd> 就在鼠标位置贴一个一样的；右键菜单也能复制 / 粘贴 / 删除。</li>
+      <li><b>调透明度 / 纯文字</b>：选中一个点，右侧可以单独调透明度；勾「不显示圆点」只剩文字，勾「点击才显示文字」则平时只留一个点。</li>
+      <li><b>点位筛选</b>：顶上那排按钮，官方分类和自己写的文字标注都在里面，点一下就能隐藏 / 显示同一类的点。</li>
+      <li><b>删地图</b>：顶部标签上的 × 可以删掉不要的地图；误删了在「方案 → 恢复已删除的地图」里找回。</li>
+      <li><b>换底图</b>：点「上传地图」，或者直接把截图 <kbd>Ctrl</kbd>+<kbd>V</kbd> 粘进来、拖进地图区也行；标注照旧。</li>
+      <li><b>保存</b>：标注自动存在本机浏览器；「方案」可以导出 JSON 发给队友。</li>
+    </ul>
+    <button class="btn" id="helpClose">知道了</button>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/data_hajin.js"></script>
+<script src="js/app.js"></script>
+<script src="js/selftest.js"></script>
+</body>
+</html>
+
